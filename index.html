@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Интерактивный 3D-просмотр главного узла бытовой машины HDA-1."
+    />
+    <title>HDA-1 — интерактивный 3D-узел</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">HDA-1 · БЫТОВОЙ УЗЕЛ P0</p>
+          <h1>Интерактивная 3D-модель</h1>
+        </div>
+        <div class="overall-size" aria-label="Габариты главного узла">
+          <span>ГАБАРИТ УЗЛА</span>
+          <strong>282 × 282 × 311 мм</strong>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <div class="viewer-shell">
+          <canvas id="viewport" aria-label="Интерактивная трёхмерная модель HDA-1"></canvas>
+          <div id="loading" class="loading" role="status">
+            <span class="spinner"></span>
+            <span>Загрузка геометрии…</span>
+          </div>
+          <div class="hint">ЛКМ / палец — вращать · колесо / щипок — масштаб · ПКМ — сдвиг</div>
+          <div class="toolbar" aria-label="Управление моделью">
+            <button id="resetView" type="button">Исходный вид</button>
+            <button id="toggleRotate" type="button" aria-pressed="false">Автовращение</button>
+            <button id="toggleCutaway" type="button" class="active" aria-pressed="true">Разрез</button>
+            <button id="toggleDimensions" type="button" class="active" aria-pressed="true">Размеры</button>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <section class="card">
+            <h2>Что показано</h2>
+            <p>
+              Главный узел настольной бытовой машины для партии теста
+              <strong>350–500 г</strong>. Корпус всего прибора здесь не показан.
+            </p>
+            <dl class="specs">
+              <div><dt>Камера внутри</dt><dd>Ø210 × 142 мм</dd></div>
+              <div><dt>Съёмная чаша</dt><dd>Ø170 × 96 мм</dd></div>
+              <div><dt>Инструмент</dt><dd>Ø131 × 104 мм</dd></div>
+              <div><dt>Зазор до дна</dt><dd>7,0 мм</dd></div>
+              <div><dt>Корпус прибора</dt><dd>≈ 350–420 × 400–480 × 380–480 мм</dd></div>
+            </dl>
+          </section>
+
+          <section class="card warning">
+            <h2>Толщина оболочки</h2>
+            <p>
+              Видимые <strong>11 мм стенки и 12 мм дна</strong> — временная
+              геометрия P0, поэтому узел выглядит промышленным.
+            </p>
+            <p>
+              Предварительный бытовой ориентир — <strong>2–3 мм</strong> с
+              усиленными фланцами. Это не производственный размер: сосуд,
+              сварку и замок необходимо рассчитывать и испытывать отдельно.
+            </p>
+          </section>
+
+          <section class="card">
+            <h2>Детали</h2>
+            <div id="parts" class="parts"></div>
+          </section>
+
+          <section class="card relief-note">
+            <span class="red-dot"></span>
+            <div>
+              <h2>Красная деталь</h2>
+              <p>
+                Независимый механический предохранительный клапан. Это не
+                пробка и не ручка; его форма в P0 условная.
+              </p>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <footer>
+        <p>
+          Инженерный кандидат P0 для проверки компоновки. Не является
+          документацией для изготовления сосуда под давлением.
+        </p>
+        <p id="status">12 STL · одна масштабная система · миллиметры</p>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
