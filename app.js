@@ -258,24 +258,24 @@ addDimensionLine(
 
 addDimensionLine(
   [
-    new THREE.Vector3(-172, -141, -22),
-    new THREE.Vector3(-158, -141, -22),
-    new THREE.Vector3(-158, 141, -22),
-    new THREE.Vector3(-172, 141, -22),
+    new THREE.Vector3(-172, -131, -17),
+    new THREE.Vector3(-158, -131, -17),
+    new THREE.Vector3(-158, 130, -17),
+    new THREE.Vector3(-172, 130, -17),
   ],
-  "282 мм",
-  new THREE.Vector3(-178, 0, -22),
+  "261 мм",
+  new THREE.Vector3(-178, 0, -17),
 );
 
 addDimensionLine(
   [
-    new THREE.Vector3(-172, 158, -22),
-    new THREE.Vector3(-158, 158, -22),
+    new THREE.Vector3(-172, 158, -17),
+    new THREE.Vector3(-158, 158, -17),
     new THREE.Vector3(-158, 158, 289),
     new THREE.Vector3(-172, 158, 289),
   ],
-  "311 мм",
-  new THREE.Vector3(-178, 158, 134),
+  "306 мм",
+  new THREE.Vector3(-178, 158, 136),
 );
 
 function setPressed(button, pressed) {
