@@ -1,143 +1,82 @@
-"""Write a dependency-free DXF R2013 drawing sheet for HDA-1 P2.
+"""Write a clean native DXF R2013 GA-02 sheet for HDA-1 P2.
 
-The result is native CAD linework (layers, arcs, circles, text, title block),
-not a raster image or an SVG poster.  Coordinates are millimetres on A3-L.
+The A3 sheet uses an explicit 1:2 scale: two 215-mm views cannot fit in the
+400-mm usable width at 1:1 without overlap.  All displayed dimensions remain
+true millimetres.  The file consists only of standard DXF line, arc, circle
+and MTEXT entities.
 """
-
-from __future__ import annotations
-
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "output" / "drawings" / "hda1_p2_ga02_ru.dxf"
 
 
-def u(text: str) -> str:
-    """DXF-safe Unicode escape sequence, understood by AutoCAD-style MTEXT."""
+def esc(text: str) -> str:
+    text = text.replace("\n", r"\P")
     return "".join(ch if ord(ch) < 128 else f"\\U+{ord(ch):04X}" for ch in text)
 
 
 class DXF:
-    def __init__(self) -> None:
-        self.e: list[str] = []
-
-    def pair(self, code: int, value: object) -> None:
-        self.e.extend([str(code), str(value)])
-
-    def line(self, layer: str, x1: float, y1: float, x2: float, y2: float) -> None:
-        self.pair(0, "LINE"); self.pair(8, layer)
-        self.pair(10, x1); self.pair(20, y1); self.pair(30, 0)
-        self.pair(11, x2); self.pair(21, y2); self.pair(31, 0)
-
-    def circle(self, layer: str, x: float, y: float, r: float) -> None:
-        self.pair(0, "CIRCLE"); self.pair(8, layer)
-        self.pair(10, x); self.pair(20, y); self.pair(30, 0); self.pair(40, r)
-
-    def arc(self, layer: str, x: float, y: float, r: float, start: float, end: float) -> None:
-        self.pair(0, "ARC"); self.pair(8, layer)
-        self.pair(10, x); self.pair(20, y); self.pair(30, 0); self.pair(40, r)
-        self.pair(50, start); self.pair(51, end)
-
-    def mtext(self, layer: str, x: float, y: float, h: float, width: float, text: str) -> None:
-        self.pair(0, "MTEXT"); self.pair(100, "AcDbEntity"); self.pair(8, layer)
-        self.pair(100, "AcDbMText"); self.pair(10, x); self.pair(20, y); self.pair(30, 0)
-        self.pair(40, h); self.pair(41, width); self.pair(71, 1); self.pair(1, u(text)); self.pair(7, "Standard")
-
-    def dim_h(self, x1: float, x2: float, y_obj: float, y_dim: float, label: str) -> None:
-        layer = "DIM"
-        self.line(layer, x1, y_obj, x1, y_dim); self.line(layer, x2, y_obj, x2, y_dim); self.line(layer, x1, y_dim, x2, y_dim)
-        a = 2.0
-        self.line(layer, x1, y_dim, x1 + a, y_dim + a); self.line(layer, x1, y_dim, x1 + a, y_dim - a)
-        self.line(layer, x2, y_dim, x2 - a, y_dim + a); self.line(layer, x2, y_dim, x2 - a, y_dim - a)
-        self.mtext(layer, (x1 + x2) / 2 - 22, y_dim - 3.2, 3.0, 44, label)
-
-    def dim_v(self, x_obj: float, x_dim: float, y1: float, y2: float, label: str) -> None:
-        layer = "DIM"
-        self.line(layer, x_obj, y1, x_dim, y1); self.line(layer, x_obj, y2, x_dim, y2); self.line(layer, x_dim, y1, x_dim, y2)
-        a = 2.0
-        self.line(layer, x_dim, y1, x_dim + a, y1 + a); self.line(layer, x_dim, y1, x_dim - a, y1 + a)
-        self.line(layer, x_dim, y2, x_dim + a, y2 - a); self.line(layer, x_dim, y2, x_dim - a, y2 - a)
-        self.mtext(layer, x_dim + 3, (y1 + y2) / 2 + 4, 3.0, 40, label)
-
-    def rect(self, layer: str, x: float, y: float, w: float, h: float) -> None:
-        self.line(layer, x, y, x + w, y); self.line(layer, x + w, y, x + w, y + h)
-        self.line(layer, x + w, y + h, x, y + h); self.line(layer, x, y + h, x, y)
-
-    def save(self, path: Path) -> None:
-        header = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1027", "9", "$INSUNITS", "70", "4", "0", "ENDSEC"]
-        tables = ["0", "SECTION", "2", "TABLES", "0", "TABLE", "2", "LAYER", "70", "5"]
-        layers = [("0", 7), ("OUTLINE", 7), ("DIM", 5), ("TEXT", 7), ("CENTER", 3), ("TITLE", 2)]
-        for name, color in layers:
-            tables += ["0", "LAYER", "2", name, "70", "0", "62", str(color), "6", "CONTINUOUS"]
-        tables += ["0", "ENDTAB", "0", "ENDSEC"]
-        body = ["0", "SECTION", "2", "ENTITIES"] + self.e + ["0", "ENDSEC", "0", "EOF"]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("\n".join(header + tables + body) + "\n", encoding="ascii")
+    def __init__(self): self.e = []
+    def p(self, c, v): self.e += [str(c), str(v)]
+    def line(self, layer, x1, y1, x2, y2):
+        self.p(0,"LINE"); self.p(8,layer); self.p(10,x1); self.p(20,y1); self.p(30,0); self.p(11,x2); self.p(21,y2); self.p(31,0)
+    def rect(self, layer, x, y, w, h):
+        self.line(layer,x,y,x+w,y); self.line(layer,x+w,y,x+w,y+h); self.line(layer,x+w,y+h,x,y+h); self.line(layer,x,y+h,x,y)
+    def circle(self, layer, x, y, r):
+        self.p(0,"CIRCLE"); self.p(8,layer); self.p(10,x); self.p(20,y); self.p(30,0); self.p(40,r)
+    def arc(self, layer, x, y, r, start, end):
+        self.p(0,"ARC"); self.p(8,layer); self.p(10,x); self.p(20,y); self.p(30,0); self.p(40,r); self.p(50,start); self.p(51,end)
+    def text(self, layer, x, y, h, width, value):
+        self.p(0,"MTEXT"); self.p(100,"AcDbEntity"); self.p(8,layer); self.p(100,"AcDbMText"); self.p(10,x); self.p(20,y); self.p(30,0); self.p(40,h); self.p(41,width); self.p(71,1); self.p(1,esc(value)); self.p(7,"Standard")
+    def save(self):
+        header=["0","SECTION","2","HEADER","9","$ACADVER","1","AC1027","9","$INSUNITS","70","4","0","ENDSEC"]
+        tables=["0","SECTION","2","TABLES","0","TABLE","2","LAYER","70","5"]
+        for name,color in [("0",7),("OUTLINE",7),("DIM",5),("TEXT",7),("CENTER",3),("TITLE",2)]:
+            tables += ["0","LAYER","2",name,"70","0","62",str(color),"6","CONTINUOUS"]
+        body=["0","SECTION","2","ENTITIES"]+self.e+["0","ENDSEC","0","EOF"]
+        OUT.parent.mkdir(parents=True,exist_ok=True); OUT.write_text("\n".join(header+tables+["0","ENDTAB","0","ENDSEC"]+body)+"\n",encoding="ascii")
 
 
-def main() -> None:
-    d = DXF()
-    # A3 landscape 420 x 297, 10 mm technical frame.
-    d.rect("OUTLINE", 0, 0, 420, 297); d.rect("OUTLINE", 10, 10, 400, 277)
-    d.mtext("TITLE", 15, 278, 6, 300, "HDA-1 — ГЛАВНЫЙ УЗЕЛ P2 · СБОРКА")
-    d.mtext("TEXT", 15, 270, 3, 300, "GA-02 · Бытовая партия 350–500 г · Все размеры в мм · Статус: P2 / не серийная КД")
-
-    # Longitudinal section, scale 1:1 in CAD (chamber ID 210, shell 2.5).
-    cx, bottom = 125, 48
-    chamber_i, chamber_o, h = 210, 215, 142
-    x0, x1 = cx - chamber_o / 2, cx + chamber_o / 2
-    y0, y1 = bottom, bottom + h
-    d.rect("OUTLINE", x0, y0, chamber_o, h)
-    d.rect("OUTLINE", cx - chamber_i / 2, y0 + 3, chamber_i, h - 13)
-    # lid, ring, gasket
-    d.rect("OUTLINE", cx - 118, y1, 236, 18); d.rect("OUTLINE", cx - 130, y1 - 14, 260, 14)
-    d.line("OUTLINE", cx - 112.5, y1 + 1.5, cx + 112.5, y1 + 1.5)
-    # P2 removable form inner Ø150 x 95, with 2.5 mm floor.
-    d.rect("OUTLINE", cx - 77.5, y0 + 2.5, 155, 97.5)
-    d.rect("OUTLINE", cx - 75, y0 + 2.5, 150, 95)
-    # Upper shaft and P2-A double ribbon.  No lower support: shaft ends 8 above floor.
-    d.rect("OUTLINE", cx - 10, y0 + 10.5, 20, 205)
-    d.circle("OUTLINE", cx, y0 + 52, 54); d.arc("OUTLINE", cx, y0 + 52, 54, 210, 330)
-    d.arc("OUTLINE", cx, y0 + 52, 54, 30, 150)
-    d.line("OUTLINE", cx - 64, y0 + 20, cx - 35, y0 + 78); d.line("OUTLINE", cx + 64, y0 + 20, cx + 35, y0 + 78)
-    # lower clear gap indicated as construction / centre layer, not support.
-    d.line("CENTER", cx - 70, y0 + 10.5, cx + 70, y0 + 10.5)
-    # safety valve envelope left side
-    d.circle("OUTLINE", x0 - 18, y0 + 90, 10); d.rect("OUTLINE", x0 - 23, y0 + 52, 10, 30); d.rect("OUTLINE", x0 - 40, y0 + 56, 17, 8)
-
-    # Orthographic top view, P2 tool and form.
-    tx, ty = 325, 145
-    d.circle("OUTLINE", tx, ty, 107.5); d.circle("OUTLINE", tx, ty, 75); d.circle("OUTLINE", tx, ty, 67.01); d.circle("OUTLINE", tx, ty, 10)
-    d.arc("OUTLINE", tx, ty, 62, 0, 300); d.arc("OUTLINE", tx, ty, 62, 180, 480)
-    d.mtext("TEXT", 276, 258, 4, 95, "ВИД СВЕРХУ · ФОРМА Ø150 · ИНСТРУМЕНТ A Ø134")
-
-    # Dimensions
-    d.dim_h(x0, x1, y0, 30, "НАРУЖ. Ø215")
-    d.dim_h(cx - 75, cx + 75, y0 + 2.5, 22, "ВНУТР. ФОРМА Ø150")
-    d.dim_v(x1, x1 + 20, y0, y1, "142")
-    d.dim_v(cx + 77.5, cx + 45, y0 + 2.5, y0 + 97.5, "95")
-    d.mtext("DIM", 22, 42, 3, 130, "ЗАЗОР ДО ЦЕЛЬНОГО ДНА 8 · НИЖНЕЙ ОПОРЫ ВАЛА НЕТ")
-    d.mtext("DIM", 22, 37, 3, 130, "ИНСТРУМЕНТ Ø134,02 · РАДИАЛЬНЫЙ ЗАЗОР 7,99")
-
-    # Notes and engineering data table on the upper right.
-    d.rect("OUTLINE", 245, 198, 155, 62)
-    d.mtext("TITLE", 250, 253, 4, 140, "ПРОВЕРЕННЫЕ ДАННЫЕ P2")
-    d.mtext("TEXT", 250, 244, 3, 145,
-            "Вал Ø20 · пик 24 Н·м · прогиб 0,095\n"
-            "Форма: 1,679 л · камера: внутр. Ø210\n"
-            "Стендовые давления: +20 / +40 / +60 кПа\n"
-            "8 проушин замка · независимый предохранительный клапан\n"
-            "Рабочий орган A: две открытые ленточные спирали")
-
-    # Title block.
-    d.rect("OUTLINE", 250, 12, 160, 28); d.line("OUTLINE", 250, 23, 410, 23); d.line("OUTLINE", 330, 12, 330, 40)
-    d.mtext("TITLE", 254, 34, 4, 70, "HDA-1 / GA-02")
-    d.mtext("TEXT", 254, 19, 3, 70, "СБОРКА P2 · 1:1")
-    d.mtext("TEXT", 334, 34, 3, 70, "ПРЕДКОНСТРУКТОРСКИЙ\nНЕ ДЛЯ ПРОИЗВОДСТВА")
-    d.save(OUT)
-    print(OUT)
+def main():
+    d=DXF()
+    d.rect("OUTLINE",0,0,420,297); d.rect("OUTLINE",10,10,400,277)
+    d.text("TITLE",15,278,6,300,"HDA-1 — ГЛАВНЫЙ УЗЕЛ P2 · СБОРКА")
+    d.text("TEXT",15,270,3,300,"GA-02 · Бытовая партия 350–500 г · Размеры в мм · Масштаб 1:2 · P2 / не серийная КД")
+    s,ox,oy=0.5,140,76
+    x=lambda v:ox+s*v; y=lambda v:oy+s*v
+    rect=lambda l,a,b,w,h:d.rect(l,x(a),y(b),s*w,s*h)
+    line=lambda l,a,b,c,e:d.line(l,x(a),y(b),x(c),y(e))
+    circ=lambda l,a,b,r:d.circle(l,x(a),y(b),s*r)
+    arc=lambda l,a,b,r,u,v:d.arc(l,x(a),y(b),s*r,u,v)
+    # Section A-A: sealed chamber, removable form and a top-supported shaft.
+    rect("OUTLINE",-107.5,0,215,142); rect("OUTLINE",-105,3,210,129)
+    rect("OUTLINE",-118,142,236,18); rect("OUTLINE",-130,128,260,14); line("OUTLINE",-112.5,143.5,112.5,143.5)
+    rect("OUTLINE",-77.5,2.5,155,97.5); rect("OUTLINE",-75,2.5,150,95); rect("OUTLINE",-10,10.5,20,205)
+    circ("OUTLINE",0,52,54); arc("OUTLINE",0,52,54,210,330); arc("OUTLINE",0,52,54,30,150)
+    line("OUTLINE",-64,20,-35,78); line("OUTLINE",64,20,35,78); line("CENTER",-70,10.5,70,10.5)
+    circ("OUTLINE",-125.5,90,10); rect("OUTLINE",-130.5,52,10,30); rect("OUTLINE",-147.5,56,17,8)
+    # Dimension geometry (the numerical labels are unscaled true dimensions).
+    d.line("DIM",x(-107.5),y(0),x(-107.5),y(-32)); d.line("DIM",x(107.5),y(0),x(107.5),y(-32)); d.line("DIM",x(-107.5),y(-32),x(107.5),y(-32))
+    d.text("DIM",90,55,3,80,"НАРУЖ. Ø215")
+    d.line("DIM",x(-75),y(2.5),x(-75),y(-18)); d.line("DIM",x(75),y(2.5),x(75),y(-18)); d.line("DIM",x(-75),y(-18),x(75),y(-18))
+    d.text("DIM",105,62,3,70,"ФОРМА Ø150")
+    d.line("DIM",x(107.5),y(0),x(145),y(0)); d.line("DIM",x(107.5),y(142),x(145),y(142)); d.line("DIM",x(145),y(0),x(145),y(142)); d.text("DIM",215,112,3,30,"142")
+    d.line("DIM",x(77.5),y(2.5),x(98),y(2.5)); d.line("DIM",x(77.5),y(97.5),x(98),y(97.5)); d.line("DIM",x(98),y(2.5),x(98),y(97.5)); d.text("DIM",188,104,3,30,"95")
+    d.text("TEXT",35,56,3,120,"РАЗРЕЗ А–А · ФОРМА СО СПЛОШНЫМ ДНОМ")
+    d.text("DIM",35,49,3,120,"Зазор до дна 8 · нижней опоры вала нет")
+    d.text("DIM",35,44,3,120,"Инструмент Ø134,02 · радиальный зазор 7,99")
+    # Top view, completely separated from the section.
+    tx,ty=315,135
+    d.circle("OUTLINE",tx,ty,53.75); d.circle("OUTLINE",tx,ty,37.5); d.circle("OUTLINE",tx,ty,33.505); d.circle("OUTLINE",tx,ty,5)
+    d.arc("OUTLINE",tx,ty,31,0,300); d.arc("OUTLINE",tx,ty,31,180,480)
+    d.text("TEXT",258,198,4,125,"ВИД СВЕРХУ · ФОРМА Ø150 · ИНСТРУМЕНТ A Ø134,02")
+    # Data panel and title block.
+    d.rect("OUTLINE",235,210,165,48); d.text("TITLE",240,252,4,150,"ПРОВЕРЕННЫЕ ДАННЫЕ P2")
+    d.text("TEXT",240,244,3,150,"Вал Ø20 · пик 24 Н·м · прогиб 0,095\nФорма 1,679 л · камера внутр. Ø210\nСтенд: +20 / +40 / +60 кПа\n8 проушин замка · независимый предохранительный клапан\nОрган A: две открытые ленточные спирали")
+    d.rect("OUTLINE",250,12,160,28); d.line("OUTLINE",250,23,410,23); d.line("OUTLINE",330,12,330,40)
+    d.text("TITLE",254,34,4,70,"HDA-1 / GA-02"); d.text("TEXT",254,19,3,70,"СБОРКА P2 · 1:2"); d.text("TEXT",334,34,3,70,"ПРЕДКОНСТРУКТОРСКИЙ\nНЕ ДЛЯ ПРОИЗВОДСТВА")
+    d.save(); print(OUT)
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()
