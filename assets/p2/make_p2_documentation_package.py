@@ -1,0 +1,236 @@
+"""Сборка единого предварительного комплекта документации HDA-1 / P2.
+
+Документ намеренно маркирован как предпроектный: он объединяет исходные
+параметры, результаты скрининговых расчётов и актуальный CAD-лист, но не
+заменяет рабочую КД, расчёт сосуда под давлением или протокол испытаний.
+"""
+
+from pathlib import Path
+from xml.sax.saxutils import escape
+
+from pypdf import PdfReader, PdfWriter
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import (
+    Image,
+    KeepTogether,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "output" / "documentation"
+DRAWINGS = ROOT / "output" / "drawings"
+FRONT = OUT / "_hda1_p2_front_matter.pdf"
+PACKAGE = OUT / "hda1_p2_preliminary_documentation_package_ru.pdf"
+GA03 = DRAWINGS / "hda1_p2_ga03_mobile_preview_ru.pdf"
+RENDER = ROOT / "output" / "renders" / "hda1_p2_main_node_photoreal.png"
+FONT = Path(r"C:\Windows\Fonts\arial.ttf")
+FONT_BOLD = Path(r"C:\Windows\Fonts\arialbd.ttf")
+
+
+def p(text, style):
+    return Paragraph(escape(text).replace("\n", "<br/>"), style)
+
+
+def cell(text, style):
+    return p(text, style)
+
+
+def page_number(canvas, doc):
+    canvas.saveState()
+    canvas.setStrokeColor(colors.HexColor("#BEC8D0"))
+    canvas.line(16 * mm, 14 * mm, A4[0] - 16 * mm, 14 * mm)
+    canvas.setFont("HDA", 7.5)
+    canvas.setFillColor(colors.HexColor("#5B6770"))
+    canvas.drawString(16 * mm, 9.5 * mm, "HDA-1 · P2 · ПРЕДВАРИТЕЛЬНЫЙ КОМПЛЕКТ · НЕ ДЛЯ ИЗГОТОВЛЕНИЯ")
+    canvas.drawRightString(A4[0] - 16 * mm, 9.5 * mm, f"Стр. {doc.page}")
+    canvas.restoreState()
+
+
+def make_styles():
+    pdfmetrics.registerFont(TTFont("HDA", str(FONT)))
+    pdfmetrics.registerFont(TTFont("HDA-Bold", str(FONT_BOLD)))
+    base = getSampleStyleSheet()
+    return {
+        "title": ParagraphStyle("title", parent=base["Title"], fontName="HDA-Bold", fontSize=24,
+                                leading=29, textColor=colors.HexColor("#173A5E"), spaceAfter=7 * mm),
+        "subtitle": ParagraphStyle("subtitle", parent=base["Normal"], fontName="HDA", fontSize=12,
+                                   leading=16, textColor=colors.HexColor("#4A5A66"), spaceAfter=5 * mm),
+        "h1": ParagraphStyle("h1", parent=base["Heading1"], fontName="HDA-Bold", fontSize=18,
+                              leading=22, textColor=colors.HexColor("#173A5E"), spaceBefore=1 * mm,
+                              spaceAfter=4 * mm),
+        "h2": ParagraphStyle("h2", parent=base["Heading2"], fontName="HDA-Bold", fontSize=11,
+                              leading=14, textColor=colors.HexColor("#173A5E"), spaceBefore=3 * mm,
+                              spaceAfter=2 * mm),
+        "body": ParagraphStyle("body", parent=base["BodyText"], fontName="HDA", fontSize=9.1,
+                                leading=13, textColor=colors.HexColor("#1F2A30"), spaceAfter=2.8 * mm),
+        "small": ParagraphStyle("small", parent=base["BodyText"], fontName="HDA", fontSize=7.6,
+                                 leading=10, textColor=colors.HexColor("#28343C")),
+        "table": ParagraphStyle("table", parent=base["BodyText"], fontName="HDA", fontSize=7.4,
+                                 leading=9.3, textColor=colors.HexColor("#18242C")),
+        "table_b": ParagraphStyle("table_b", parent=base["BodyText"], fontName="HDA-Bold", fontSize=7.4,
+                                   leading=9.3, textColor=colors.white),
+        "cover_note": ParagraphStyle("cover_note", parent=base["BodyText"], fontName="HDA", fontSize=10,
+                                      leading=14, alignment=TA_LEFT, textColor=colors.HexColor("#23323C")),
+        "cover_status": ParagraphStyle("cover_status", parent=base["BodyText"], fontName="HDA-Bold", fontSize=9,
+                                        leading=12, alignment=TA_CENTER, textColor=colors.HexColor("#8A3D12")),
+    }
+
+
+def table(rows, widths, styles, header=True):
+    converted = []
+    for i, row in enumerate(rows):
+        converted.append([cell(value, styles["table_b"] if header and i == 0 else styles["table"]) for value in row])
+    t = Table(converted, colWidths=widths, repeatRows=1 if header else 0, hAlign="LEFT")
+    commands = [
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#BFC9D0")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2.5 * mm),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2.5 * mm),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.1 * mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.1 * mm),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+    ]
+    if len(rows) > 1:
+        for row in range(1, len(rows)):
+            if row % 2 == 0:
+                commands.append(("BACKGROUND", (0, row), (-1, row), colors.HexColor("#F3F7F9")))
+    t.setStyle(TableStyle(commands))
+    return t
+
+
+def build_front():
+    OUT.mkdir(parents=True, exist_ok=True)
+    s = make_styles()
+    doc = SimpleDocTemplate(
+        str(FRONT), pagesize=A4, rightMargin=16 * mm, leftMargin=16 * mm,
+        topMargin=15 * mm, bottomMargin=20 * mm,
+        title="HDA-1 P2 — предварительный комплект документации",
+        author="HDA-1 Concept",
+    )
+    story = []
+
+    # 1. Cover
+    story += [p("HDA-1", s["title"]), p("Узел смешивания и вспенивания для бытовой машины", s["subtitle"])]
+    if RENDER.exists():
+        img = Image(str(RENDER))
+        img._restrictSize(178 * mm, 126 * mm)
+        story += [img, Spacer(1, 4 * mm)]
+    status = Table([[p("СТАТУС: ПРЕДВАРИТЕЛЬНАЯ КОНСТРУКТОРСКАЯ ПРОРАБОТКА P2", s["cover_status"])]],
+                   colWidths=[178 * mm])
+    status.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF1E7")),
+        ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#D88954")),
+        ("TOPPADDING", (0, 0), (-1, -1), 3 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 3 * mm),
+    ]))
+    story += [status, Spacer(1, 4 * mm)]
+    story += [p("Назначение: проверить компоновку верхнего привода, двухленточного инструмента и цельной съёмной формы без нижней опоры вала. Комплект объединяет исходные данные, скрининговые расчёты и CAD-лист GA-03.", s["cover_note"])]
+    story += [p("Это не серийная КД, не расчёт сосуда по нормам и не разрешение на самостоятельное изготовление оборудования под давлением.", s["cover_note"]), PageBreak()]
+
+    # 2. Status and contents
+    story += [p("0. Статус и состав комплекта", s["h1"])]
+    story += [p("Цель P2 — снять ключевые риски до изготовления прототипа: геометрию рабочего органа, отсутствие нижней опоры, ориентировочную прочность вала, чистоту силового пути и безопасность логики давления. Все численные режимы ниже — исходные для стенда, а не паспорт изделия.", s["body"])]
+    contents = [
+        ["Код", "Документ / материал", "Назначение"],
+        ["P2-DOC-01", "Настоящий комплект", "Единая навигация, сводка решений и открытых пунктов."],
+        ["GA-03", "Сборочный CAD-лист A3, 1:2", "Разрез A–A, вид сверху, базовые габариты и зазоры."],
+        ["P2-CALC-01", "Скрининг вала, муфты, подшипников и воздуха", "Проверка исходных допущений до FEM и стенда."],
+        ["P2-SAFE-01", "Скрининг давления, замка и сброса", "Разделение стендовых режимов и структурного конверта."],
+        ["P2-QA-01", "Цифровая QA-проверка", "Зазоры, отсутствие нижней опоры, визуальная связность модели."],
+    ]
+    story += [table(contents, [25 * mm, 62 * mm, 91 * mm], s), Spacer(1, 5 * mm)]
+    story += [p("Граница ответственности", s["h2"]), p("Перед изготовлением обязательны: финальная 3D-параметрическая модель, FEM и усталость, расчёт камеры/крышки/замка по применимой норме, подбор серийных подшипников и уплотнений, анализ электробезопасности, протоколы мойки и физические испытания продукта.", s["body"]), PageBreak()]
+
+    # 3. Architecture
+    story += [p("1. Техническая архитектура", s["h1"])]
+    architecture = [
+        ["Подсистема", "Принятое решение P2", "Почему"],
+        ["Форма", "Съёмная гладкая чаша Ø150; дно цельное.", "Нет отверстия и нижнего подшипника в продуктовой зоне; проще очистка."],
+        ["Мешалка", "Две разнесённые на 180° открытые ленточные спирали, съёмная ступица.", "Вертикально переносит вязкое тесто и динамически симметрична на 180–360 об/мин."],
+        ["Вал и опоры", "Мокрый вал Ø20; две опоры только в сухой головке сверху.", "Сохраняет цельное дно и изолирует подшипники от продукта."],
+        ["Уплотнение", "Сменная двойная торцевая кассета с дренажной полостью.", "Разделяет сухую головку и продуктовую зону; нужна квалификация."],
+        ["Привод", "BLDC класса 600 Вт + редуктор + ограничение момента.", "Исходный диапазон 50–120 об/мин для замеса и 180–360 об/мин для диспергирования."],
+        ["Давление", "Стендовые точки +20 / +40 / +60 кПа; два датчика, замок, отдельный предохранительный путь.", "Режим выбирается данными рецептуры; камера не получает рабочий паспорт из концепта."],
+    ]
+    story += [table(architecture, [31 * mm, 68 * mm, 79 * mm], s), Spacer(1, 5 * mm)]
+    story += [p("Неподвижная нижняя опора, контакт мешалки с формой и открытие крышки при ненулевом давлении — запрещённые состояния конструкции P2.", s["body"]), PageBreak()]
+
+    # 4. BOM
+    story += [p("2. Ведомость основных узлов (P2)", s["h1"])]
+    bom = [
+        ["Поз.", "Наименование", "Кол.", "Материал / исполнение", "Статус"],
+        ["1", "Корпус и крышка головки", "1", "Контактные поверхности: AISI 304 или эквивалент; окончательное исполнение TBD.", "Компоновка подтверждена"],
+        ["2", "Съёмная форма Ø150", "1", "Нержавеющая сталь либо валидированный алюминиевый вариант.", "Нужны мойка и выпечка"],
+        ["3", "Двухленточный рабочий орган", "1", "Нержавеющая сталь; две симметричные ленты 180°.", "Нужна балансировка"],
+        ["4", "Мокрый вал и 4-кулачковая муфта", "1", "Ø20 мм, кандидат 1.4404 / 316L.", "Нужны износ и фиксация"],
+        ["5", "Подшипниковый картридж", "1", "Два подшипника Ø20 в сухой зоне.", "Нужна конкретная серия"],
+        ["6", "Торцевое уплотнение", "1", "Сменная двойная кассета с дренажной полостью.", "Нужна квалификация"],
+        ["7", "Привод", "1", "BLDC 600 Вт класса + редуктор + ограничение момента.", "Нужен подбор"],
+        ["8", "Управляемый сброс", "1", "НЗ-клапан, ловушка аэрозоля, сменный ограничитель.", "Нужны расходные испытания"],
+        ["9", "Датчики давления", "2", "Независимые каналы; диагностика рассогласования.", "Нужны калибровка и логика"],
+    ]
+    story += [table(bom, [10 * mm, 39 * mm, 11 * mm, 73 * mm, 45 * mm], s), Spacer(1, 4 * mm)]
+    story += [p("Контактные металлы и эластомеры должны быть уточнены по реальным поставщикам, моющим средам и температуре процесса. Данная ведомость — не закупочная спецификация.", s["small"]), PageBreak()]
+
+    # 5. Calculations
+    story += [p("3. Расчётная сводка: что уже проверено", s["h1"])]
+    calculation = [
+        ["Проверка", "Допущение", "Результат", "Инженерный вывод"],
+        ["Вал Ø20", "24 Н·м пик; 250 Н боковая сила; консоль 120 мм.", "σvM = 46,47 МПа; предварительный статический запас 3,66.", "Подходит как стартовая величина; необходимы FEM, моды и усталость."],
+        ["Муфта", "4 кулачка, радиус передачи 15 мм, сечение 7×7 мм.", "Около 400 Н на кулачок; среднее касательное напряжение 8,16 МПа.", "Нужны смятие, износ, люфт и защита от неполного зацепления."],
+        ["Подшипники", "C=7 кН; P=500 Н; 360 об/мин.", "Формальный L10 ≈ 127 000 ч.", "Не паспорт ресурса: лимит зададут перекос, уплотнение, мойка и серия."],
+        ["Зазоры", "CAD-измерение рабочего органа относительно формы.", "Радиальный 7,989 мм; до цельного дна 8,0 мм.", "Нижней опоры нет; касание формы должно быть исключено стендом."],
+        ["Давление", "Точки исследования +20/+40/+60 кПа.", "Это матрица рецептуры; не принятое рабочее давление.", "До повышения режима — нормированный расчёт, гидропроба и клапан."],
+    ]
+    story += [table(calculation, [28 * mm, 43 * mm, 48 * mm, 59 * mm], s), Spacer(1, 5 * mm)]
+    story += [p("Важно: скрининговый расчёт проверяет порядок величин и помогает не допустить явной компоновочной ошибки. Он не заменяет профессиональный расчёт сосуда под давлением, FEA и ресурсные испытания.", s["body"]), PageBreak()]
+
+    # 6. Test plan / release gates
+    story += [p("4. Программа верификации и условия перехода к прототипу", s["h1"])]
+    tests = [
+        ["Этап", "Что измеряется", "Критерий P2", "Далее"],
+        ["Геометрия", "Зазоры, биение, балансировка, отсутствие нижней опоры.", "≥7 мм до формы и дна; нет контакта во всём диапазоне оборотов.", "Уточнить допуски CAD и технологию изготовления."],
+        ["Сухой прогон", "RPM, ток, вибрация, температура головки, работа муфты.", "Без резонансного режима и самопроизвольного расцепления.", "Выбрать двигатель, редуктор, подшипники."],
+        ["Продукт", "Момент, температура, плотность/объём, оседание через 1/3/5/10 мин, выпечка.", "Момент ниже лимита; достигнут целевой продуктовый критерий.", "Выбрать геометрию A/B и режим."],
+        ["Герметичность", "Кривая давления, утечки, контролируемый сброс, P1/P2.", "Крышка не открывается до подтверждённого нулевого давления.", "Валидировать клапан и межблокировки."],
+        ["Конструкция", "Расчёт камеры/крышки/замка, FEM, сварка, очистка.", "Выполнены квалифицированными специалистами по применимым нормам.", "Только затем — рабочая КД и испытательный образец."],
+    ]
+    story += [table(tests, [25 * mm, 59 * mm, 48 * mm, 46 * mm], s), Spacer(1, 5 * mm)]
+    story += [p("Переходный критерий: одновременно закрыты геометрический, механический, технологический и безопасностный контуры. Ни один из них не может быть заменён красивым 3D-рендером или только расчётом вала.", s["body"])]
+    story += [p("Далее в составе пакета приведён актуальный нативный CAD-лист GA-03 и его мобильная обзорная страница.", s["h2"])]
+
+    doc.build(story, onFirstPage=page_number, onLaterPages=page_number)
+
+
+def assemble():
+    build_front()
+    if not GA03.exists():
+        raise FileNotFoundError(f"Не найден CAD-лист: {GA03}")
+    writer = PdfWriter()
+    for source in (FRONT, GA03):
+        for page in PdfReader(str(source)).pages:
+            writer.add_page(page)
+    writer.add_metadata({
+        "/Title": "HDA-1 P2 — предварительный комплект документации",
+        "/Author": "HDA-1 Concept",
+        "/Subject": "Предпроектная проработка, не для производства",
+    })
+    with PACKAGE.open("wb") as output:
+        writer.write(output)
+    FRONT.unlink(missing_ok=True)
+    print(f"Created: {PACKAGE}")
+
+
+if __name__ == "__main__":
+    assemble()
