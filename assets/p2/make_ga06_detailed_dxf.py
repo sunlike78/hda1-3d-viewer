@@ -100,8 +100,8 @@ def main():
     d.rect("OUTLINE", 272, 152, 20, 30)
     for xx in (244, 260, 276, 292, 308): d.rect("OUTLINE", xx, 73, 7, 8)
     d.text("TITLE", 238, 45, 3.4, 110, "ВИД СПЕРЕДИ")
-    d.text("TEXT", 238, 38, 2.55, 115, "8-позиционный замок; сухая головка\nс 2 подшипниками Ø20")
-    balloon(d, 7, 339, 166, 291, 167)
+    # Ball 7 stays in the corridor between view and table, never over a BOM row.
+    balloon(d, 7, 330, 166, 291, 167)
 
     # Position table is separate; text has no leaders crossing a view.
     d.rect("OUTLINE", 335, 75, 65, 138)
@@ -132,10 +132,11 @@ def main():
            "Вал: пик 24 Н·м; расчётный прогиб 0,095 мм.\n"
            "Рабочий орган - единая сборка со ступицей и радиальными связями.\n"
            "До изготовления: FEM, ресурс, замок, камера и протокол испытаний.")
-    d.rect("OUTLINE", 245, 14, 155, 28); d.line("OUTLINE", 245, 25, 400, 25); d.line("OUTLINE", 324, 14, 324, 42)
-    d.text("TITLE", 249, 35, 3.9, 70, "HDA-1 / GA-06")
-    d.text("TEXT", 249, 20, 2.7, 70, "СБОРКА P2 · 1:2")
-    d.text("TEXT", 328, 35, 2.5, 68, "ПРЕДВАРИТЕЛЬНЫЙ\nНЕ ДЛЯ ПРОИЗВОДСТВА")
+    # Move the title block down so it cannot touch the front-view caption.
+    d.rect("OUTLINE", 245, 11, 155, 25); d.line("OUTLINE", 245, 21, 400, 21); d.line("OUTLINE", 324, 11, 324, 36)
+    d.text("TITLE", 249, 30, 3.9, 70, "HDA-1 / GA-06")
+    d.text("TEXT", 249, 16, 2.7, 70, "СБОРКА P2 · 1:2")
+    d.text("TEXT", 328, 30, 2.5, 68, "ПРЕДВАРИТЕЛЬНЫЙ\nНЕ ДЛЯ ПРОИЗВОДСТВА")
     d.save()
     print(OUT)
 

@@ -35,6 +35,9 @@ FRONT = OUT / "_hda1_p2_front_matter.pdf"
 PACKAGE = OUT / "hda1_p2_preliminary_documentation_package_ru.pdf"
 GA03 = DRAWINGS / "hda1_p2_ga03_mobile_preview_ru.pdf"
 RENDER = ROOT / "output" / "renders" / "hda1_p2_main_node_photoreal.png"
+# GA-05 was rejected by visual QA; add only the replacement GA-06 after it exists.
+FREECAD_GA06 = ROOT / "output" / "drawings" / "hda1_p2_ga06_screen_copy_ru.pdf"
+FREECAD_APPENDIX = ROOT / "output" / "freecad" / "HDA1_P2_FreeCAD_Render_Appendix.pdf"
 FONT = Path(r"C:\Windows\Fonts\arial.ttf")
 FONT_BOLD = Path(r"C:\Windows\Fonts\arialbd.ttf")
 
@@ -297,7 +300,11 @@ def assemble():
     if not GA03.exists():
         raise FileNotFoundError(f"Не найден CAD-лист: {GA03}")
     writer = PdfWriter()
-    for source in (FRONT, GA03):
+    sources = [FRONT, GA03]
+    for extra in (FREECAD_GA06, FREECAD_APPENDIX):
+        if extra.exists():
+            sources.append(extra)
+    for source in sources:
         for page in PdfReader(str(source)).pages:
             writer.add_page(page)
     writer.add_metadata({
