@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HDA-1 — документация P2</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; color: #162b3b; background: #eef2f4; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { max-width: 1180px; margin: 0 auto; padding: 18px; }
+      header { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+      h1 { margin: 0; font-size: clamp(22px, 4vw, 34px); color: #173a5e; }
+      p { line-height: 1.45; }
+      .status { color: #8a3d12; font-weight: bold; }
+      .open { display: inline-block; margin: 6px 0 18px; padding: 12px 17px; border-radius: 7px; background: #1f4e79; color: #fff; font-weight: bold; text-decoration: none; }
+      .viewer { width: 100%; height: calc(100vh - 185px); min-height: 560px; border: 1px solid #b9c6cf; border-radius: 8px; background: #fff; }
+      .note { color: #50606b; font-size: 14px; }
+      @media (max-width: 620px) { main { padding: 14px; } .viewer { height: 72vh; min-height: 430px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>HDA-1 · комплект документации P2</h1>
+        <span class="status">Предварительная проработка · не для изготовления</span>
+      </header>
+      <p>В пакете: состав узла, ведомость, расчётная сводка, программа проверок, CAD-лист GA-03 и 3D-обзор.</p>
+      <a class="open" href="./assets/p2/hda1_p2_preliminary_documentation_package_ru.pdf">Открыть PDF на весь экран</a>
+      <object class="viewer" data="./assets/p2/hda1_p2_preliminary_documentation_package_ru.pdf" type="application/pdf">
+        <p>Встроенный просмотр не поддерживается. <a href="./assets/p2/hda1_p2_preliminary_documentation_package_ru.pdf">Откройте PDF напрямую</a>.</p>
+      </object>
+      <p class="note">PDF подготовлен для просмотра на телефоне и компьютере. DXF открывается отдельно в CAD-системе.</p>
+    </main>
+  </body>
+</html>
